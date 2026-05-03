@@ -36,17 +36,22 @@ section{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction
 @keyframes bounce{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(5px);}}
 
 /* MUSIC */
-#music-bar{position:fixed;bottom:20px;right:20px;z-index:8000;background:rgba(13,6,24,.95);backdrop-filter:blur(16px);border:1px solid rgba(232,160,176,.3);border-radius:18px;padding:10px 14px;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:190px;box-shadow:0 4px 24px rgba(0,0,0,.4);}
-#music-track-wrap{width:100%;overflow:hidden;white-space:nowrap;}
-#music-track-name{font-family:'Dancing Script',cursive;font-size:14px;color:var(--rose);white-space:nowrap;display:inline-block;animation:marquee-scroll 12s linear infinite;}
-@keyframes marquee-scroll{0%{transform:translateX(100%);}100%{transform:translateX(-100%);}}
-#music-controls{display:flex;gap:8px;align-items:center;}
-.mc-btn{background:rgba(232,160,176,.1);border:1px solid rgba(232,160,176,.25);border-radius:50%;width:30px;height:30px;color:var(--rose);font-size:13px;cursor:none;display:flex;align-items:center;justify-content:center;transition:all .2s;padding:0;}
-.mc-btn:hover{background:rgba(232,160,176,.25);box-shadow:0 0 10px rgba(232,160,176,.3);}
-#music-note-wrap{display:flex;align-items:center;gap:5px;}
-#music-note{font-size:14px;animation:spin 3s linear infinite;color:var(--rose);}
+#music-bar{position:fixed;bottom:20px;right:20px;z-index:8000;background:rgba(13,6,24,.95);backdrop-filter:blur(16px);border:1px solid rgba(232,160,176,.3);border-radius:18px;padding:10px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;width:200px;box-shadow:0 4px 24px rgba(0,0,0,.5);}
+/* Nombre canción con scroll */
+#music-track-wrap{width:100%;overflow:hidden;white-space:nowrap;border-bottom:1px solid rgba(232,160,176,.1);padding-bottom:5px;}
+#music-track-scroll{display:inline-block;animation:marquee-scroll 14s linear infinite;}
+#music-track-name{font-family:'Dancing Script',cursive;font-size:13px;color:#f0c0d0;white-space:nowrap;display:inline;}
+@keyframes marquee-scroll{0%{transform:translateX(200px);}100%{transform:translateX(-100%)}}
+/* Frase estática */
+#music-static-label{display:flex;align-items:center;gap:5px;width:100%;}
+#music-note{font-size:13px;animation:spin 3s linear infinite;color:var(--rose);flex-shrink:0;}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-#music-label{font-family:'Montserrat',sans-serif;font-size:10px;color:rgba(232,160,176,.5);}
+#music-static-text{font-family:'Dancing Script',cursive;font-size:13px;color:var(--rose);flex:1;}
+#music-label{font-family:'Montserrat',sans-serif;font-size:9px;color:rgba(232,160,176,.45);flex-shrink:0;}
+/* Controles */
+#music-controls{display:flex;gap:7px;align-items:center;}
+.mc-btn{background:rgba(232,160,176,.1);border:1px solid rgba(232,160,176,.25);border-radius:50%;width:32px;height:32px;color:var(--rose);font-size:14px;cursor:none;display:flex;align-items:center;justify-content:center;transition:all .2s;padding:0;}
+.mc-btn:hover{background:rgba(232,160,176,.28);box-shadow:0 0 10px rgba(232,160,176,.3);}
 
 /* STORY */
 #story{background:linear-gradient(180deg,#0d0618 0%,#1a0a18 50%,#0f0a1a 100%);padding:80px 20px;}
@@ -189,16 +194,23 @@ section{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction
 
 <!-- Music bar -->
 <div id="music-bar">
+  <!-- Nombre de la canción con scroll (arriba) -->
   <div id="music-track-wrap">
-    <div id="music-track-name">♡ Cargando...</div>
+    <div id="music-track-scroll"><span id="music-track-name">Cargando...</span></div>
   </div>
+  <!-- Frase estática "♡ Nuestra canción" + contador -->
+  <div id="music-static-label">
+    <span id="music-note">♪</span>
+    <span id="music-static-text">♡ Nuestra canción</span>
+    <span id="music-label">1/12</span>
+  </div>
+  <!-- Controles multimedia -->
   <div id="music-controls">
     <button class="mc-btn" onclick="prevSong()" title="Anterior">⏮</button>
     <button class="mc-btn" id="mc-play" onclick="togglePlayPause()" title="Play/Pausa">⏸</button>
     <button class="mc-btn" onclick="nextSong()" title="Siguiente">⏭</button>
     <button class="mc-btn" id="mc-mute" onclick="toggleMute()" title="Silenciar">🔊</button>
   </div>
-  <div id="music-note-wrap"><span id="music-note">♪</span> <span id="music-label" style="font-size:10px;color:rgba(232,160,176,.5);">Canción 1/12</span></div>
 </div>
 
 <!-- ════════ HERO ════════ -->
@@ -314,7 +326,7 @@ section{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction
     <div class="lore-card">
       <canvas class="enemy-preview" data-type="broken" width="40" height="40" style="display:block;margin-bottom:5px;"></canvas>
       <div class="lore-name">Desamor</div>
-      <div class="lore-dmg">— 3 HP — Camina y se multiplica</div>
+      <div class="lore-dmg">— 2 HP — Camina y se multiplica</div>
       <div class="lore-why">Se filtra por las grietas del orgullo, las palabras no dichas y las caricias aplazadas.</div>
       <div class="lore-how">💡 Una maceta compartida: regarla cada noche con una cosa que agradecen del otro.</div>
     </div>
@@ -590,11 +602,14 @@ let ytPlayer=null, ytReady=false;
 function updateMusicUI(){
   const name=SONG_NAMES[songIdx]||('Canción '+(songIdx+1));
   const el=document.getElementById('music-track-name');
-  if(el) el.textContent='♪ '+name;
+  if(el) el.textContent=name;
   const lbl=document.getElementById('music-label');
-  if(lbl) lbl.textContent=`Canción ${songIdx+1}/${SONGS.length}`;
+  if(lbl) lbl.textContent=`${songIdx+1}/${SONGS.length}`;
   const playBtn=document.getElementById('mc-play');
   if(playBtn) playBtn.textContent=isPlaying?'⏸':'▶';
+  // Restart marquee animation so it starts from right each song change
+  const scroll=document.getElementById('music-track-scroll');
+  if(scroll){scroll.style.animation='none';setTimeout(()=>{scroll.style.animation='';},50);}
 }
 
 // Crear contenedor YT con tamaño mínimo real (200x200) off-screen
@@ -614,7 +629,9 @@ window.onYouTubeIframeAPIReady=function(){
     videoId:SONGS[0],
     playerVars:{
       autoplay:0,controls:0,loop:0,rel:0,
-      playsinline:1,origin:location.hostname||'localhost'
+      playsinline:1,modestbranding:1,
+      disablekb:1,fs:0,iv_load_policy:3,
+      origin:location.hostname||'localhost'
     },
     events:{
       onReady:function(){
@@ -623,15 +640,22 @@ window.onYouTubeIframeAPIReady=function(){
         if(window._splashClicked) _playNow();
       },
       onStateChange:function(e){
-        if(e.data===1){isPlaying=true;updateMusicUI();}
-        if(e.data===2||e.data===0){
-          isPlaying=(e.data!==2&&e.data!==0);
-          if(e.data===0){ // ended → next
-            songIdx=(songIdx+1)%SONGS.length;
-            ytPlayer.loadVideoById(SONGS[songIdx]);
-            isPlaying=true;
-          }
+        if(e.data===1){ // playing
+          isPlaying=true;
+          // Anti-ad: if duration < 60s it's likely an ad — skip to end
+          try{
+            const dur=ytPlayer.getDuration();
+            if(dur>0&&dur<60){ytPlayer.seekTo(dur);return;}
+          }catch(ex){}
           updateMusicUI();
+        }
+        if(e.data===2){isPlaying=false;updateMusicUI();}
+        if(e.data===0){ // ended → next song
+          songIdx=(songIdx+1)%SONGS.length;
+          _loadCurrent();isPlaying=true;updateMusicUI();
+        }
+        if(e.data===5){ // video cued — play it
+          ytPlayer.playVideo();
         }
       },
       onError:function(){
@@ -960,9 +984,14 @@ document.querySelectorAll('.enemy-preview').forEach(c=>{
 // ─────────────────────────────────────
 // GAME STATE
 // ─────────────────────────────────────
+// Mobile detection
+const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||(window.innerWidth<600);
+
 const G={
   canvas:null,ctx:null,running:false,
-  W:820,H:512,TILE:32,COLS:25,ROWS:16,
+  W:820,H:512,TILE:32,
+  COLS:isMobile?19:25,  // mapa más pequeño en móvil
+  ROWS:isMobile?12:16,
   player:{x:1,y:1,hp:5,maxHp:5,name:'Hugo',char:'🧑',invTimer:0},
   goalChar:{x:23,y:14,name:'Sayumi',char:'👧'},
   isHugo:true,
@@ -1100,7 +1129,20 @@ function randFree(excl=[]){
     const y=1+Math.floor(Math.random()*(G.ROWS-2));
     if(G.map[y][x]===0&&!excl.find(e=>e.x===x&&e.y===y)) return {x,y};
   }
-  return {x:2,y:2};
+  return {x:Math.floor(G.COLS/2),y:Math.floor(G.ROWS/2)};
+}
+
+// Same as randFree but ensures minimum Manhattan distance from player start (1,1)
+function randFreeForEnemy(excl=[]){
+  const minDist=6; // mínimo 6 celdas de distancia del jugador
+  for(let i=0;i<600;i++){
+    const x=1+Math.floor(Math.random()*(G.COLS-2));
+    const y=1+Math.floor(Math.random()*(G.ROWS-2));
+    const dist=Math.abs(x-1)+Math.abs(y-1);
+    if(G.map[y][x]===0&&dist>=minDist&&!excl.find(e=>e.x===x&&e.y===y)) return {x,y};
+  }
+  // Fallback: far corner
+  return {x:G.COLS-3,y:G.ROWS-3};
 }
 
 function isGoldBlock(x,y){return G.goldBlocks.some(b=>b.x===x&&b.y===y&&b.timer>0);}
@@ -1262,16 +1304,15 @@ function spawnEnemies(){
   const types=['time','money','broken','virus'];
   const excl=[{x:1,y:1},{x:G.COLS-2,y:G.ROWS-2},...G.heartsOnMap,...G.iceOnMap];
 
-  // 1. Obligatorio: Añadir exactamente 1 de cada tipo para que estén los 4
+  // 1. Obligatorio: 1 de cada tipo, LEJOS del jugador (mínimo 6 tiles de distancia)
   for(let i=0; i<4; i++){
-    const pos=randFree(excl);excl.push(pos);
+    const pos=randFreeForEnemy(excl);excl.push(pos);
     G.enemies.push(mkEnemy(types[i],pos.x,pos.y));
   }
-
-  // 2. Extra: Añadir enemigos al azar para completar la dificultad del nivel
+  // 2. Extra según dificultad, también lejos
   for(let i=4; i<count; i++){
     const type=types[Math.floor(Math.random()*types.length)];
-    const pos=randFree(excl);excl.push(pos);
+    const pos=randFreeForEnemy(excl);excl.push(pos);
     G.enemies.push(mkEnemy(type,pos.x,pos.y));
   }
 }
@@ -1290,8 +1331,10 @@ function spawnPickups(){
     const p=randFree(excl);excl.push(p);
     G.heartsOnMap.push({...p,type:'love',collected:false,pulse:Math.random()*Math.PI*2});
   }
-  // Ice
-  if(Math.random()<DIFF[G.diff].iceFreq){
+  // Hielo: cantidad fija por nivel (0,0,1,1,2,2,2,3,3,3)
+  const iceByLevel=[0,0,1,1,2,2,2,3,3,3];
+  const iceCount=iceByLevel[Math.min(G.level-1,9)];
+  for(let i=0;i<iceCount;i++){
     const p=randFree(excl);excl.push(p);
     G.iceOnMap.push({...p,collected:false,pulse:Math.random()*Math.PI*2});
   }
@@ -1362,7 +1405,11 @@ function startGame(){
   G.canvas=document.getElementById('game-canvas');
   G.ctx=G.canvas.getContext('2d');
   G.W=G.canvas.offsetWidth;G.H=G.canvas.offsetHeight;
-  G.canvas.width=G.W;G.canvas.height=G.H;
+  // HiDPI / Retina fix: scale canvas for crisp rendering on mobile
+  const dpr=Math.min(window.devicePixelRatio||1, isMobile?1.5:2);
+  G.canvas.width=Math.round(G.W*dpr);
+  G.canvas.height=Math.round(G.H*dpr);
+  G.ctx.scale(dpr,dpr);
   G.TILE=Math.floor(Math.min(G.W/G.COLS,G.H/G.ROWS));
   G.diff=selectedDiff;
   G.level=1;
@@ -1553,7 +1600,8 @@ function launchWinFireworks(){
 
 function boom(tx,ty,color){
   const px=tx*G.TILE+G.TILE/2,py=ty*G.TILE+G.TILE/2;
-  for(let i=0;i<14;i++) G.particles.push({x:px,y:py,vx:(Math.random()-.5)*6,vy:(Math.random()-1.3)*5,color,life:1,r:2+Math.random()*3});
+  const n=isMobile?5:14; // menos partículas en móvil
+  for(let i=0;i<n;i++) G.particles.push({x:px,y:py,vx:(Math.random()-.5)*6,vy:(Math.random()-1.3)*5,color,life:1,r:2+Math.random()*3});
 }
 
 // ─────────────────────────────────────
@@ -1570,7 +1618,7 @@ function updateEnemies(dt){
     }
     // Collision — frozen enemies are passable
     if(!e.frozen&&e.x===G.player.x&&e.y===G.player.y){
-      const dmg={time:1,money:2,broken:3,virus:4}[e.type]||1;
+      const dmg={time:1,money:2,broken:2,virus:4}[e.type]||1; // broken: 2HP
       takeDmg(dmg);
     }
   });
@@ -1774,10 +1822,12 @@ function gameLoop(ts=0){
     }
   }
 
-  // Subtle grid
-  ctx.strokeStyle='rgba(255,255,255,.025)';ctx.lineWidth=.4;
-  for(let x=0;x<=G.COLS;x++){ctx.beginPath();ctx.moveTo(x*T,0);ctx.lineTo(x*T,G.H);ctx.stroke();}
-  for(let y=0;y<=G.ROWS;y++){ctx.beginPath();ctx.moveTo(0,y*T);ctx.lineTo(G.W,y*T);ctx.stroke();}
+  // Subtle grid (skip on mobile for performance)
+  if(!isMobile){
+    ctx.strokeStyle='rgba(255,255,255,.025)';ctx.lineWidth=.4;
+    for(let x=0;x<=G.COLS;x++){ctx.beginPath();ctx.moveTo(x*T,0);ctx.lineTo(x*T,G.H);ctx.stroke();}
+    for(let y=0;y<=G.ROWS;y++){ctx.beginPath();ctx.moveTo(0,y*T);ctx.lineTo(G.W,y*T);ctx.stroke();}
+  }
 
   // Gold blocks
   G.goldBlocks.forEach(b=>{
@@ -1850,10 +1900,13 @@ function gameLoop(ts=0){
     ctx.globalAlpha=1;
   }
 
-  // Player (flicker when invincible)
-  if(G.player.invTimer<=0||Math.floor(t/80)%2===0){
+  // Player — siempre opaco, parpadeo rápido sólo cuando recibe daño
+  {
     const phx=G.player.x*T+T/2,phy=G.player.y*T+T/2;
     const pb=Math.sin(t*.008)*2;
+    // Si está invencible (recibió daño) parpadea; si no, completamente visible
+    const showPlayer=G.player.invTimer<=0||Math.floor(t/60)%2===0;
+    ctx.globalAlpha=showPlayer?1:0;
     ctx.font=`${T*.85+pb}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.shadowColor=G.isHugo?'#a0d0ff':'#ffb0d0';ctx.shadowBlur=16;
     ctx.fillText(G.player.char,phx,phy);ctx.shadowBlur=0;
@@ -1861,6 +1914,7 @@ function gameLoop(ts=0){
     ctx.fillStyle=G.isHugo?'#a0d0ff':'#e8a0b0';
     ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=8;
     ctx.fillText(G.player.name,phx,phy-T*.82);ctx.shadowBlur=0;
+    ctx.globalAlpha=1;
   }
 
   // Angels
@@ -1870,6 +1924,7 @@ function gameLoop(ts=0){
 
   // Particles
   G.particles=G.particles.filter(p=>p.life>0);
+  if(isMobile&&G.particles.length>30) G.particles=G.particles.slice(-30);
   G.particles.forEach(p=>{
     p.x+=p.vx;p.y+=p.vy;p.vy+=.18;p.life-=.04;
     ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
@@ -1961,7 +2016,10 @@ document.addEventListener('keyup', e => { G.keys[e.key] = false; });
 window.addEventListener('resize',()=>{
   if(G.canvas&&G.running){
     G.W=G.canvas.offsetWidth;G.H=G.canvas.offsetHeight;
-    G.canvas.width=G.W;G.canvas.height=G.H;
+    const dpr=Math.min(window.devicePixelRatio||1, isMobile?1.5:2);
+    G.canvas.width=Math.round(G.W*dpr);
+    G.canvas.height=Math.round(G.H*dpr);
+    G.ctx.setTransform(dpr,0,0,dpr,0,0);
     G.TILE=Math.floor(Math.min(G.W/G.COLS,G.H/G.ROWS));
   }
 });
