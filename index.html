@@ -222,7 +222,7 @@ section{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction
     <p class="hero-subtitle">Una historia escrita entre las estrellas</p>
     <p class="hero-date">3 DE MAYO 2024 — 3 DE MAYO 2026</p>
   </div>
-  <div class="scroll-hint"><span>Descubre nuestra historia</span><div class="scroll-arrow"></div></div>
+  <div class="scroll-hint"><span>Descubre nuestra historia...</span><div class="scroll-arrow"></div></div>
 </section>
 
 <!-- ════════ STARS ════════ -->
@@ -601,16 +601,29 @@ let ytPlayer=null, ytReady=false;
 
 function updateMusicUI(){
   const name=SONG_NAMES[songIdx]||('Canción '+(songIdx+1));
+  // Set name FIRST, then restart animation
   const el=document.getElementById('music-track-name');
   if(el) el.textContent=name;
   const lbl=document.getElementById('music-label');
   if(lbl) lbl.textContent=`${songIdx+1}/${SONGS.length}`;
   const playBtn=document.getElementById('mc-play');
   if(playBtn) playBtn.textContent=isPlaying?'⏸':'▶';
-  // Restart marquee animation so it starts from right each song change
+  // Restart marquee so name scrolls from right
   const scroll=document.getElementById('music-track-scroll');
-  if(scroll){scroll.style.animation='none';setTimeout(()=>{scroll.style.animation='';},50);}
+  if(scroll){
+    scroll.style.animation='none';
+    // Force reflow before restarting
+    void scroll.offsetWidth;
+    scroll.style.animation='marquee-scroll 14s linear infinite';
+  }
 }
+// Show initial track name immediately (before YT loads)
+document.addEventListener('DOMContentLoaded',()=>{
+  const el=document.getElementById('music-track-name');
+  if(el) el.textContent=SONG_NAMES[0];
+  const lbl=document.getElementById('music-label');
+  if(lbl) lbl.textContent=`1/${SONGS.length}`;
+});
 
 // Crear contenedor YT con tamaño mínimo real (200x200) off-screen
 (function(){
@@ -670,11 +683,34 @@ function _playNow(){
   if(!ytPlayer||!ytReady)return;
   try{ytPlayer.setVolume(65);ytPlayer.playVideo();isPlaying=true;updateMusicUI();}
   catch(err){console.warn('YT:',err);}
+  _startAdSkipPolling();
 }
 function _loadCurrent(){
   if(!ytPlayer||!ytReady)return;
   try{ytPlayer.loadVideoById(SONGS[songIdx]);isPlaying=true;updateMusicUI();}
   catch(err){}
+  // Start aggressive ad-skip polling for 30s after each song change
+  _startAdSkipPolling();
+}
+
+let _adSkipTimer=null;
+function _startAdSkipPolling(){
+  if(_adSkipTimer) clearInterval(_adSkipTimer);
+  let attempts=0;
+  _adSkipTimer=setInterval(()=>{
+    attempts++;
+    if(attempts>100){clearInterval(_adSkipTimer);_adSkipTimer=null;return;} // stop after 30s
+    try{
+      if(!ytPlayer||!ytReady) return;
+      const dur=ytPlayer.getDuration();
+      const state=ytPlayer.getPlayerState();
+      // Ad heuristic: playing (1) with duration < 90s = likely ad
+      if(state===1&&dur>0&&dur<90){
+        ytPlayer.seekTo(dur-0.1,true); // skip to end of ad
+      }
+      // Also check if video title differs (ad): not reliable via API, skip by duration only
+    }catch(ex){}
+  },300);
 }
 
 function onSplashClick(){
@@ -1014,9 +1050,10 @@ const G={
 };
 
 const DIFF={
-  easy:   {enemyCount:[4,4,5,5,5,6,6,7,7,8], goldFreq:1, goldChance:0.3, heartFreq:.8, iceFreq:.8},
-  normal: {enemyCount:[4,5,5,6,6,7,7,8,8,9], goldFreq:1, goldChance:0.5, heartFreq:.6, iceFreq:.65},
-  hard:   {enemyCount:[4,5,6,7,8,9,10,11,12,13], goldFreq:2, goldChance:0.7, heartFreq:.4, iceFreq:.5},
+  // enemyCount[nivel-1]: lvl 1-6 más suave, lvl 7-10 sube gradual pero con límite
+  easy:   {enemyCount:[4,4,4,5,5,5, 6,6,7,8], goldFreq:1, goldChance:0.25, heartFreq:.85, iceFreq:.8},
+  normal: {enemyCount:[4,4,5,5,6,6, 7,7,8,9], goldFreq:1, goldChance:0.45, heartFreq:.65, iceFreq:.65},
+  hard:   {enemyCount:[4,5,5,6,7,8, 9,10,11,12], goldFreq:2, goldChance:0.65, heartFreq:.4, iceFreq:.5},
 };
 
 // ─────────────────────────────────────
@@ -1302,6 +1339,8 @@ function spawnEnemies(){
   G.enemies=[];
   const count=DIFF[G.diff].enemyCount[Math.min(G.level-1,9)];
   const types=['time','money','broken','virus'];
+  // Virus cap: max 2 in easy/normal (3 only at level 10)
+  const virusCap=(G.diff==='hard')?99:(G.level===10?3:2);
   const excl=[{x:1,y:1},{x:G.COLS-2,y:G.ROWS-2},...G.heartsOnMap,...G.iceOnMap];
 
   // 1. Obligatorio: 1 de cada tipo, LEJOS del jugador (mínimo 6 tiles de distancia)
@@ -1311,7 +1350,13 @@ function spawnEnemies(){
   }
   // 2. Extra según dificultad, también lejos
   for(let i=4; i<count; i++){
-    const type=types[Math.floor(Math.random()*types.length)];
+    let type=types[Math.floor(Math.random()*types.length)];
+    // Enforce virus cap
+    const virusCount=G.enemies.filter(e=>e.type==='virus').length;
+    if(type==='virus'&&virusCount>=virusCap){
+      const noVirus=types.filter(t=>t!=='virus');
+      type=noVirus[Math.floor(Math.random()*noVirus.length)];
+    }
     const pos=randFreeForEnemy(excl);excl.push(pos);
     G.enemies.push(mkEnemy(type,pos.x,pos.y));
   }
@@ -1417,7 +1462,7 @@ function startGame(){
   G.won=false;G.lost=false;
   setupLevel(false);
   G.running=true;
-  if(G.animFrame)cancelAnimationFrame(G.animFrame);
+  if(G.animFrame){cancelAnimationFrame(G.animFrame);clearTimeout(G.animFrame);}
   gameLoop();
 }
 
@@ -1436,7 +1481,7 @@ function restartGame(){
   G.canvas.width=G.W;G.canvas.height=G.H;
   G.TILE=Math.floor(Math.min(G.W/G.COLS,G.H/G.ROWS));
   G.running=true;
-  if(G.animFrame)cancelAnimationFrame(G.animFrame);
+  if(G.animFrame){cancelAnimationFrame(G.animFrame);clearTimeout(G.animFrame);}
   gameLoop();
 }
 
@@ -1518,26 +1563,25 @@ function endScreen(win){
   if(win){
     m.innerHTML=`
       <div id="win-fireworks" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
-      <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px;">
-        <div style="font-size:clamp(28px,5vw,46px);font-family:'Dancing Script',cursive;color:#e8a0b0;text-shadow:0 0 30px rgba(232,160,176,.8);animation:glowPulse 2s infinite;">
+      <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 20px;width:100%;overflow-y:auto;max-height:100%;">
+        <div style="font-size:clamp(24px,4vw,38px);font-family:'Dancing Script',cursive;color:#e8a0b0;text-shadow:0 0 20px rgba(232,160,176,.8);animation:glowPulse 2s infinite;line-height:1.2;text-align:center;">
           💕 ¡Lo lograron! 💕
         </div>
-        <div style="font-size:clamp(22px,4vw,36px);font-family:'Dancing Script',cursive;color:#ffe8a3;">
+        <div style="font-size:clamp(18px,3.5vw,28px);font-family:'Dancing Script',cursive;color:#ffe8a3;text-align:center;">
           ${G.player.name} & ${G.goalChar.name}
         </div>
-        <p style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:clamp(13px,2vw,17px);color:#dfc8d5;max-width:520px;line-height:1.8;text-align:center;">
-          "Y así, después de cruzar el laberinto del Dinero que quiso comprarlo todo,<br>
-          del Virus que intentó debilitar su fuerza,<br>
-          del Tiempo que corría sin avisar,<br>
-          y del Desamor que nunca pudo echar raíces donde el amor verdadero florece…<br><br>
-          <strong style="color:#e8a0b0;">Se encontraron.</strong><br><br>
-          Porque el amor que se cuida cada día no necesita ser perfecto,<br>
-          solo necesita ser real, valiente y constante.<br>
-          Como el de Hugo y Sayumi —<br>
-          que cruzaron un océano para demostrarlo."
+        <p style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:clamp(12px,1.8vw,15px);color:#dfc8d5;max-width:500px;line-height:1.65;text-align:center;margin:0;">
+          "Y así, después de cruzar el laberinto del <em style='color:#ffd700'>Dinero</em> que quiso comprarlo todo,
+          del <em style='color:#cc44ff'>Virus</em> que intentó debilitar su fuerza,
+          del <em style='color:#ffcc44'>Tiempo</em> que corría sin avisar,
+          y del <em style='color:#ff4466'>Desamor</em> que nunca pudo echar raíces donde el amor verdadero florece…
+          <strong style="color:#e8a0b0;">Se encontraron.</strong>
+          Porque el amor que se cuida cada día no necesita ser perfecto,
+          solo necesita ser real, valiente y constante.
+          Como el de Hugo y Sayumi — que cruzaron un océano para demostrarlo."
         </p>
-        <div style="font-size:32px;letter-spacing:10px;animation:floatHeart 2s ease-out both;">💕 💗 💖 💓 💞 💘</div>
-        <button class="gm-btn" onclick="restartGame()">♡ Jugar de nuevo ♡</button>
+        <div style="font-size:24px;letter-spacing:6px;">💕 💗 💖 💓 💞 💘</div>
+        <button class="gm-btn" onclick="restartGame()" style="margin-top:4px;padding:9px 24px;font-size:17px;">♡ Jugar de nuevo ♡</button>
       </div>`;
     m.style.display='flex';
     // Launch canvas fireworks
@@ -1900,15 +1944,16 @@ function gameLoop(ts=0){
     ctx.globalAlpha=1;
   }
 
-  // Player — siempre opaco, parpadeo rápido sólo cuando recibe daño
+  // Player — SIEMPRE completamente visible; parpadeo sutil solo al recibir daño
   {
     const phx=G.player.x*T+T/2,phy=G.player.y*T+T/2;
     const pb=Math.sin(t*.008)*2;
-    // Si está invencible (recibió daño) parpadea; si no, completamente visible
-    const showPlayer=G.player.invTimer<=0||Math.floor(t/60)%2===0;
-    ctx.globalAlpha=showPlayer?1:0;
+    // Parpadeo: solo cuando invTimer>0 (recibió daño), alterna entre 1 y 0.35
+    // Nunca llega a 0 para que el jugador nunca desaparezca
+    const blinkAlpha=(G.player.invTimer>0&&Math.floor(t/55)%2===1)?0.35:1;
+    ctx.globalAlpha=blinkAlpha;
     ctx.font=`${T*.85+pb}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.shadowColor=G.isHugo?'#a0d0ff':'#ffb0d0';ctx.shadowBlur=16;
+    ctx.shadowColor=G.isHugo?'#a0d0ff':'#ffb0d0';ctx.shadowBlur=isMobile?6:16;
     ctx.fillText(G.player.char,phx,phy);ctx.shadowBlur=0;
     ctx.font=`bold ${T*.28}px 'Dancing Script',cursive`;
     ctx.fillStyle=G.isHugo?'#a0d0ff':'#e8a0b0';
@@ -1968,7 +2013,12 @@ function gameLoop(ts=0){
     ctx.shadowBlur=0;
   }
 
-  G.animFrame=requestAnimationFrame(gameLoop);
+  if(isMobile){
+    // Cap to ~30fps on mobile to avoid throttling/jank
+    G.animFrame=setTimeout(()=>requestAnimationFrame(gameLoop), 33);
+  } else {
+    G.animFrame=requestAnimationFrame(gameLoop);
+  }
 }
 
 // ─────────────────────────────────────
