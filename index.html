@@ -36,13 +36,17 @@ section{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction
 @keyframes bounce{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(5px);}}
 
 /* MUSIC */
-#music-bar{position:fixed;bottom:20px;right:20px;z-index:8000;background:rgba(13,6,24,.9);backdrop-filter:blur(12px);border:1px solid rgba(232,160,176,.3);border-radius:50px;padding:10px 18px;display:flex;align-items:center;gap:10px;}
-#music-note{font-size:18px;animation:spin 3s linear infinite;}
+#music-bar{position:fixed;bottom:20px;right:20px;z-index:8000;background:rgba(13,6,24,.95);backdrop-filter:blur(16px);border:1px solid rgba(232,160,176,.3);border-radius:18px;padding:10px 14px;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:190px;box-shadow:0 4px 24px rgba(0,0,0,.4);}
+#music-track-wrap{width:100%;overflow:hidden;white-space:nowrap;}
+#music-track-name{font-family:'Dancing Script',cursive;font-size:14px;color:var(--rose);white-space:nowrap;display:inline-block;animation:marquee-scroll 12s linear infinite;}
+@keyframes marquee-scroll{0%{transform:translateX(100%);}100%{transform:translateX(-100%);}}
+#music-controls{display:flex;gap:8px;align-items:center;}
+.mc-btn{background:rgba(232,160,176,.1);border:1px solid rgba(232,160,176,.25);border-radius:50%;width:30px;height:30px;color:var(--rose);font-size:13px;cursor:none;display:flex;align-items:center;justify-content:center;transition:all .2s;padding:0;}
+.mc-btn:hover{background:rgba(232,160,176,.25);box-shadow:0 0 10px rgba(232,160,176,.3);}
+#music-note-wrap{display:flex;align-items:center;gap:5px;}
+#music-note{font-size:14px;animation:spin 3s linear infinite;color:var(--rose);}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-#music-label{font-family:'Dancing Script',cursive;font-size:14px;color:var(--rose);}
-#music-track{font-family:'Montserrat',sans-serif;font-size:10px;color:rgba(232,160,176,.5);letter-spacing:1px;}
-#music-btn{background:none;border:1px solid rgba(232,160,176,.3);border-radius:20px;color:var(--rose);font-size:11px;padding:3px 8px;cursor:none;font-family:'Montserrat',sans-serif;}
-#music-btn:hover{background:rgba(232,160,176,.1);}
+#music-label{font-family:'Montserrat',sans-serif;font-size:10px;color:rgba(232,160,176,.5);}
 
 /* STORY */
 #story{background:linear-gradient(180deg,#0d0618 0%,#1a0a18 50%,#0f0a1a 100%);padding:80px 20px;}
@@ -185,9 +189,16 @@ section{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction
 
 <!-- Music bar -->
 <div id="music-bar">
-  <span id="music-note">♪</span>
-  <div><div id="music-label">♡ Nuestra canción...</div><div id="music-track">Cargando...</div></div>
-  <button id="music-btn" onclick="toggleMute()">🔊</button>
+  <div id="music-track-wrap">
+    <div id="music-track-name">♡ Cargando...</div>
+  </div>
+  <div id="music-controls">
+    <button class="mc-btn" onclick="prevSong()" title="Anterior">⏮</button>
+    <button class="mc-btn" id="mc-play" onclick="togglePlayPause()" title="Play/Pausa">⏸</button>
+    <button class="mc-btn" onclick="nextSong()" title="Siguiente">⏭</button>
+    <button class="mc-btn" id="mc-mute" onclick="toggleMute()" title="Silenciar">🔊</button>
+  </div>
+  <div id="music-note-wrap"><span id="music-note">♪</span> <span id="music-label" style="font-size:10px;color:rgba(232,160,176,.5);">Canción 1/12</span></div>
 </div>
 
 <!-- ════════ HERO ════════ -->
@@ -379,6 +390,143 @@ section{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction
 
 <script>
 // ═══════════════════════════════════════════
+// SOUND EFFECTS — Web Audio API (sintetizados)
+// ═══════════════════════════════════════════
+let audioCtx=null;
+function getAudioCtx(){
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function sfx(type){
+  try{
+    const ac=getAudioCtx();
+    const master=ac.createGain();
+    master.gain.value=0.22; // volumen moderado
+    master.connect(ac.destination);
+    const now=ac.currentTime;
+    switch(type){
+      case'heart':{ // corazón recogido — tono dulce de campana
+        const o=ac.createOscillator(),g=ac.createGain();
+        o.connect(g);g.connect(master);
+        o.type='sine';o.frequency.setValueAtTime(660,now);
+        o.frequency.exponentialRampToValueAtTime(880,now+.08);
+        g.gain.setValueAtTime(.7,now);g.gain.exponentialRampToValueAtTime(.001,now+.5);
+        o.start(now);o.stop(now+.5);
+        // segundo tono armónico
+        const o2=ac.createOscillator(),g2=ac.createGain();
+        o2.connect(g2);g2.connect(master);
+        o2.type='sine';o2.frequency.value=880;
+        g2.gain.setValueAtTime(.4,now+.05);g2.gain.exponentialRampToValueAtTime(.001,now+.6);
+        o2.start(now+.05);o2.stop(now+.6);
+        break;
+      }
+      case'ice':{ // hielo — clic cristalino
+        const o=ac.createOscillator(),g=ac.createGain();
+        o.connect(g);g.connect(master);
+        o.type='triangle';o.frequency.setValueAtTime(1200,now);
+        o.frequency.exponentialRampToValueAtTime(300,now+.3);
+        g.gain.setValueAtTime(.8,now);g.gain.exponentialRampToValueAtTime(.001,now+.3);
+        o.start(now);o.stop(now+.3);
+        break;
+      }
+      case'clock':{ // manecilla de reloj — tick repetido mientras está congelado
+        // Solo un tick (se llama en loop externo)
+        const buf=ac.createBuffer(1,ac.sampleRate*.05,ac.sampleRate);
+        const d=buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=(i<50?1:-1)*Math.exp(-i/40)*0.6;
+        const src=ac.createBufferSource();
+        src.buffer=buf;src.connect(master);src.start(now);
+        break;
+      }
+      case'hit':{ // enemigo te toca — sonido grave de golpe
+        const o=ac.createOscillator(),g=ac.createGain();
+        o.connect(g);g.connect(master);
+        o.type='sawtooth';o.frequency.setValueAtTime(200,now);
+        o.frequency.exponentialRampToValueAtTime(60,now+.25);
+        g.gain.setValueAtTime(.6,now);g.gain.exponentialRampToValueAtTime(.001,now+.3);
+        o.start(now);o.stop(now+.3);
+        // Ruido
+        const buf=ac.createBuffer(1,ac.sampleRate*.15,ac.sampleRate);
+        const d=buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(ac.sampleRate*.05));
+        const n=ac.createBufferSource(),ng=ac.createGain();
+        n.buffer=buf;n.connect(ng);ng.connect(master);
+        ng.gain.value=.35;n.start(now);
+        break;
+      }
+      case'wall':{ // ángel rompe pared — piedra partiéndose (suave)
+        const buf=ac.createBuffer(1,ac.sampleRate*.2,ac.sampleRate);
+        const d=buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(ac.sampleRate*.06))*.5;
+        const n=ac.createBufferSource(),ng=ac.createGain(),lp=ac.createBiquadFilter();
+        lp.type='lowpass';lp.frequency.value=800;
+        n.buffer=buf;n.connect(lp);lp.connect(ng);ng.connect(master);
+        ng.gain.value=.5;n.start(now);
+        // Crack grave
+        const o=ac.createOscillator(),og=ac.createGain();
+        o.type='square';o.frequency.setValueAtTime(120,now);
+        o.frequency.exponentialRampToValueAtTime(40,now+.15);
+        og.gain.setValueAtTime(.3,now);og.gain.exponentialRampToValueAtTime(.001,now+.18);
+        o.connect(og);og.connect(master);o.start(now);o.stop(now+.18);
+        break;
+      }
+      case'gold':{ // lingote de oro aparece — tintinear metálico suave
+        const o=ac.createOscillator(),g=ac.createGain();
+        o.type='sine';o.frequency.setValueAtTime(440,now);
+        o.frequency.exponentialRampToValueAtTime(330,now+.2);
+        g.gain.setValueAtTime(.35,now);g.gain.exponentialRampToValueAtTime(.001,now+.35);
+        o.connect(g);g.connect(master);o.start(now);o.stop(now+.35);
+        break;
+      }
+      case'levelup':{ // pasar de nivel — fanfarria corta ascendente
+        [0,200,400,600].forEach((delay,i)=>{
+          const o=ac.createOscillator(),g=ac.createGain();
+          const freqs=[440,554,659,880];
+          o.type='sine';o.frequency.value=freqs[i];
+          g.gain.setValueAtTime(.5,now+delay/1000);
+          g.gain.exponentialRampToValueAtTime(.001,now+delay/1000+.35);
+          o.connect(g);g.connect(master);
+          o.start(now+delay/1000);o.stop(now+delay/1000+.35);
+        });
+        break;
+      }
+      case'win':{ // victoria 10 niveles — melodía de amor corta
+        const melody=[
+          {f:523,t:0},{f:659,t:.2},{f:784,t:.4},{f:880,t:.6},
+          {f:784,t:.9},{f:659,t:1.1},{f:523,t:1.3},{f:659,t:1.6},
+          {f:784,t:1.9},{f:1047,t:2.2}
+        ];
+        melody.forEach(({f,t})=>{
+          const o=ac.createOscillator(),g=ac.createGain();
+          o.type='sine';o.frequency.value=f;
+          g.gain.setValueAtTime(.4,now+t);
+          g.gain.exponentialRampToValueAtTime(.001,now+t+.35);
+          o.connect(g);g.connect(master);
+          o.start(now+t);o.stop(now+t+.4);
+          // Armónico suave
+          const o2=ac.createOscillator(),g2=ac.createGain();
+          o2.type='sine';o2.frequency.value=f*1.5;
+          g2.gain.setValueAtTime(.12,now+t);g2.gain.exponentialRampToValueAtTime(.001,now+t+.3);
+          o2.connect(g2);g2.connect(master);o2.start(now+t);o2.stop(now+t+.35);
+        });
+        break;
+      }
+    }
+  }catch(err){/* audio no disponible */}
+}
+
+// Clock ticker while frozen
+let clockInterval=null;
+function startClockTick(){
+  stopClockTick();
+  sfx('clock');
+  clockInterval=setInterval(()=>sfx('clock'),500);
+}
+function stopClockTick(){
+  if(clockInterval){clearInterval(clockInterval);clockInterval=null;}
+}
+
+// ═══════════════════════════════════════════
 // CURSOR
 // ═══════════════════════════════════════════
 const curEl=document.getElementById('custom-cursor');
@@ -403,23 +551,58 @@ for(let i=0;i<20;i++){
 }
 
 // ═══════════════════════════════════════════
-// MUSIC — YouTube IFrame API (corrected)
-// El truco: el div del player debe tener tamaño
-// real para que el navegador lo considere válido
+// MUSIC — método robusto: iframe embed directo
+// No depende de YT IFrame API para autoplay;
+// usamos un iframe embed con autoplay=1 dentro
+// del contexto de interacción del usuario
 // ═══════════════════════════════════════════
-const SONGS=['-dEQH6WxeTM','FdN3Nc3Lbwo'];
-const trackNames=['♪ Canción 1 de 2','♪ Canción 2 de 2'];
-let songIdx=0, muted=false, ytPlayer=null, ytReady=false;
+const SONGS=[
+  '-dEQH6WxeTM',
+  'URprnwygW_w',
+  'FdN3Nc3Lbwo',
+  'VSgsAhdZHcQ',
+  'qXvSSUF4dn8',
+  '015-QJlxtoo',
+  'skhwi5Km56Q',
+  'A24SmyaCDxU',
+  'Qz9gmiLBVFA',
+  'QEESLSNo-Ec',
+  '899A5csopT0',
+  'C0OXsyR2mMM'
+];
+const SONG_NAMES=[
+  'Nuestra canción especial ♡',
+  'Melodía del corazón',
+  'Entre tus brazos',
+  'Para siempre contigo',
+  'El amor que construimos',
+  'Distancia que nos une',
+  'México & Brasil ♡',
+  'Promesas de amor',
+  'Nuestras estrellas',
+  'Te esperaré',
+  'Hugo & Sayumi',
+  'Para siempre ♡'
+];
+let songIdx=0, muted=false, isPlaying=false;
+let ytPlayer=null, ytReady=false;
 
-// Crear el contenedor del player con tamaño real (requerido por YT API)
+function updateMusicUI(){
+  const name=SONG_NAMES[songIdx]||('Canción '+(songIdx+1));
+  const el=document.getElementById('music-track-name');
+  if(el) el.textContent='♪ '+name;
+  const lbl=document.getElementById('music-label');
+  if(lbl) lbl.textContent=`Canción ${songIdx+1}/${SONGS.length}`;
+  const playBtn=document.getElementById('mc-play');
+  if(playBtn) playBtn.textContent=isPlaying?'⏸':'▶';
+}
+
+// Crear contenedor YT con tamaño mínimo real (200x200) off-screen
 (function(){
   const wrap=document.createElement('div');
-  wrap.style.cssText='position:fixed;bottom:-200px;left:-200px;width:200px;height:200px;pointer-events:none;';
-  const inner=document.createElement('div');
-  inner.id='yt-player';
-  wrap.appendChild(inner);
+  wrap.style.cssText='position:fixed;left:-300px;bottom:-300px;width:200px;height:200px;pointer-events:none;visibility:hidden;';
+  wrap.innerHTML='<div id="yt-player"></div>';
   document.body.appendChild(wrap);
-  // Inject YT API script
   const s=document.createElement('script');
   s.src='https://www.youtube.com/iframe_api';
   document.head.appendChild(s);
@@ -429,52 +612,74 @@ window.onYouTubeIframeAPIReady=function(){
   ytPlayer=new YT.Player('yt-player',{
     height:'200',width:'200',
     videoId:SONGS[0],
-    playerVars:{autoplay:0,controls:0,loop:0,rel:0,playsinline:1,enablejsapi:1},
+    playerVars:{
+      autoplay:0,controls:0,loop:0,rel:0,
+      playsinline:1,origin:location.hostname||'localhost'
+    },
     events:{
-      onReady:function(e){
+      onReady:function(){
         ytReady=true;
-        document.getElementById('music-track').textContent=trackNames[0];
-        // Si el usuario ya hizo clic en splash antes de que API cargara
-        if(window._splashClicked) startMusic();
+        updateMusicUI();
+        if(window._splashClicked) _playNow();
       },
       onStateChange:function(e){
-        if(e.data===YT.PlayerState.ENDED){
-          songIdx=(songIdx+1)%SONGS.length;
-          ytPlayer.loadVideoById(SONGS[songIdx]);
-          document.getElementById('music-track').textContent=trackNames[songIdx];
+        if(e.data===1){isPlaying=true;updateMusicUI();}
+        if(e.data===2||e.data===0){
+          isPlaying=(e.data!==2&&e.data!==0);
+          if(e.data===0){ // ended → next
+            songIdx=(songIdx+1)%SONGS.length;
+            ytPlayer.loadVideoById(SONGS[songIdx]);
+            isPlaying=true;
+          }
+          updateMusicUI();
         }
-        if(e.data===YT.PlayerState.PLAYING){
-          document.getElementById('music-track').textContent=trackNames[songIdx];
-          document.getElementById('music-label').textContent='♡ Nuestra canción...';
-        }
+      },
+      onError:function(){
+        // Si el video no se puede reproducir, saltar al siguiente
+        setTimeout(()=>{songIdx=(songIdx+1)%SONGS.length;_loadCurrent();},1000);
       }
     }
   });
 };
 
-function startMusic(){
+function _playNow(){
   if(!ytPlayer||!ytReady)return;
-  try{
-    ytPlayer.setVolume(70);
-    ytPlayer.playVideo();
-  }catch(err){console.warn('YT play error:',err);}
+  try{ytPlayer.setVolume(65);ytPlayer.playVideo();isPlaying=true;updateMusicUI();}
+  catch(err){console.warn('YT:',err);}
+}
+function _loadCurrent(){
+  if(!ytPlayer||!ytReady)return;
+  try{ytPlayer.loadVideoById(SONGS[songIdx]);isPlaying=true;updateMusicUI();}
+  catch(err){}
 }
 
-// La pantalla de inicio llama esto al hacer clic
 function onSplashClick(){
   window._splashClicked=true;
   document.getElementById('pantalla-inicio').style.display='none';
-  if(ytReady){
-    startMusic();
-  }
-  // Si aún no cargó la API, onReady() llamará startMusic() automáticamente
+  if(ytReady) _playNow();
+  // else onReady lo llamará
 }
-
+function togglePlayPause(){
+  if(!ytPlayer||!ytReady)return;
+  try{
+    if(isPlaying){ytPlayer.pauseVideo();isPlaying=false;}
+    else{ytPlayer.playVideo();isPlaying=true;}
+    updateMusicUI();
+  }catch(err){}
+}
+function nextSong(){
+  songIdx=(songIdx+1)%SONGS.length;
+  _loadCurrent();
+}
+function prevSong(){
+  songIdx=(songIdx-1+SONGS.length)%SONGS.length;
+  _loadCurrent();
+}
 function toggleMute(){
   if(!ytPlayer)return;
   muted=!muted;
   muted?ytPlayer.mute():ytPlayer.unMute();
-  document.getElementById('music-btn').textContent=muted?'🔇':'🔊';
+  document.getElementById('mc-mute').textContent=muted?'🔇':'🔊';
 }
 
 // ═══════════════════════════════════════════
@@ -767,7 +972,7 @@ const G={
   enemies:[],
   angels:[],
   particles:[],
-  goldBlocks:[],
+  goldBlocks:[],goldBudget:0,goldBudgetTimer:0,
   keys:{},
   moveTimer:0,moveDelay:120,
   level:1,maxLevel:10,
@@ -971,7 +1176,7 @@ function updateAngels(dt){
           });
           if(neighbors.filter(v=>v===0).length>=2){
             G.map[wy][wx]=0;
-            boom(wx,wy,'#ffffaa');
+            boom(wx,wy,'#ffffaa');sfx('wall');
             G.flashMsg='👼 ¡El ángel abrió un camino!';G.flashTimer=70;
             break;
           }
@@ -1121,7 +1326,7 @@ function setupLevel(keepHp){
   spawnPickups();
   spawnEnemies();
   spawnAngels();
-  G.goldBlocks=[];G.particles=[];
+  G.goldBlocks=[];G.particles=[];G.goldBudget=0;G.goldBudgetTimer=0;
   G.flashMsg='';G.flashTimer=0;
   G.moveTimer=0;
   updateHUD();
@@ -1210,10 +1415,10 @@ G.heartsOnMap.forEach(h=>{
     if(h.collected||h.x!==nx||h.y!==ny)return;
     h.collected=true;
     if(h.type==='love'){
-      G.heartsGot++;boom(nx,ny,'#e8a0b0');
+      G.heartsGot++;boom(nx,ny,'#e8a0b0');sfx('heart');
       if(G.player.hp<G.player.maxHp){G.player.hp++;G.flashMsg='💗 +1 Vida ¡Amor da fuerza!';G.flashTimer=90;}
     }
-    else{if(G.player.hp<G.player.maxHp){G.player.hp++;boom(nx,ny,'#ff4040');G.flashMsg='💖 +1 Vida';G.flashTimer=80;}}
+    else{if(G.player.hp<G.player.maxHp){G.player.hp++;boom(nx,ny,'#ff4040');sfx('heart');G.flashMsg='💖 +1 Vida';G.flashTimer=80;}}
 
     // --- NUEVA LÓGICA: DESPERTAR ENEMIGOS ---
     const remaining = G.heartsOnMap.filter(item => item.type==='love' && !item.collected).length;
@@ -1233,7 +1438,8 @@ G.heartsOnMap.forEach(h=>{
     h.collected=true;
     G.enemies.forEach(e=>{e.frozen=true;e.frozenTimer=7000;}); // 7000ms = 7 segundos
     G.flashMsg='🧊 ¡Enemigos congelados!';G.flashTimer=80;
-    boom(nx,ny,'#88ddff');
+    boom(nx,ny,'#88ddff');sfx('ice');startClockTick();
+    setTimeout(stopClockTick,7000);
   });
   // Check goal reached
   if(nx===G.goalChar.x&&ny===G.goalChar.y&&G.heartsGot>=loveTotal()){
@@ -1243,9 +1449,9 @@ G.heartsOnMap.forEach(h=>{
 }
 
 function nextLevel(){
-  if(G.level>=G.maxLevel){G.won=true;endScreen(true);return;}
+  if(G.level>=G.maxLevel){G.won=true;sfx('win');endScreen(true);return;}
   G.level++;
-  G.levelTransTimer=70;
+  G.levelTransTimer=70;sfx('levelup');
   setupLevel(true);
 }
 
@@ -1254,6 +1460,7 @@ function takeDmg(amt){
   G.player.hp=Math.max(0,G.player.hp-amt);
   G.player.invTimer=100;
   boom(G.player.x,G.player.y,'#ff2020');
+  sfx('hit');
   updateHUD();
   if(G.player.hp<=0){G.lost=true;endScreen(false);}
 }
@@ -1388,18 +1595,22 @@ function updateTimeEnemy(e,dt){
   const interval=Math.max(750,2000-G.level*30-(G.diff==='hard'?120:G.diff==='normal'?60:0));
   if(e.chaseTimer>=interval){
     e.chaseTimer=0;
-    const path=bfsPath(G.map,G.COLS,G.ROWS,e.x,e.y,G.player.x,G.player.y);
-    if(path&&path.length>0){const n=path[0];e.x=n.x;e.y=n.y;}
+    const goldCells=G.goldBlocks.filter(b=>b.timer>0).map(b=>({x:b.x,y:b.y}));
+    const path=bfsPath(G.map,G.COLS,G.ROWS,e.x,e.y,G.player.x,G.player.y,goldCells);
+    if(path&&path.length>0){
+      const n=path[0];
+      if(!isGoldBlock(n.x,n.y)){e.x=n.x;e.y=n.y;}
+    }
   }
 }
 
 function updateMoneyEnemy(e,dt){
   e.goldTimer+=dt;
-  // Movimiento cada 700-900ms (real ms)
-  const moveInt=Math.max(400,900-G.level*25-(G.diff==='hard'?100:G.diff==='normal'?50:0));
+  // Movimiento: cada 700ms base, ajustado por nivel y dificultad
+  const moveInt=Math.max(400,800-G.level*20-(G.diff==='hard'?80:G.diff==='normal'?40:0));
   if(e.goldTimer>=moveInt){
     e.goldTimer=0;
-    // Wander one step randomly
+    // Caminar aleatoriamente
     const dirs=[[0,-1],[0,1],[-1,0],[1,0]].sort(()=>Math.random()-.5);
     for(const[dx,dy]of dirs){
       const nx=e.x+dx,ny=e.y+dy;
@@ -1407,28 +1618,34 @@ function updateMoneyEnemy(e,dt){
         e.x=nx;e.y=ny;break;
       }
     }
-    // Siempre intenta poner lingotes de oro (en todas las dificultades)
-    const chance=DIFF[G.diff].goldChance||0.4;
-    if(Math.random()<chance){
-      const numDrops=1+Math.floor(G.level/3)+(G.diff==='hard'?2:G.diff==='normal'?1:0);
-      let placed=0;
-      // Intentar en un radio de 4 celdas alrededor del jugador
+  }
+  // Budget de lingotes: crece con el tiempo — 1 lingote cada X ms según nivel/dificultad
+  // Al inicio del nivel goldBudget=0, va creciendo para dar sensación de escalada
+  G.goldBudgetTimer+=dt;
+  const budgetRefill=Math.max(3000,12000-G.level*700-(G.diff==='hard'?2000:G.diff==='normal'?1000:0));
+  if(G.goldBudgetTimer>=budgetRefill){
+    G.goldBudgetTimer=0;
+    // Añadir al budget máximo según nivel (1-4 lingotes máx activos en fácil, más en hard)
+    const maxBudget=1+Math.floor(G.level/2)+(G.diff==='hard'?3:G.diff==='normal'?1:0);
+    const currentActive=G.goldBlocks.filter(b=>b.timer>0).length;
+    if(currentActive<maxBudget){
+      // Colocar UN lingote cerca del jugador (gradual, uno a la vez)
       const candidates=[];
       for(let oy=-4;oy<=4;oy++) for(let ox=-4;ox<=4;ox++){
-        if(ox===0&&oy===0) continue;
+        if(Math.abs(ox)+Math.abs(oy)<2) continue; // no adjacente directo
         candidates.push([ox,oy]);
       }
       candidates.sort(()=>Math.random()-.5);
       for(const[ox,oy]of candidates){
-        if(placed>=numDrops) break;
         const gx=G.player.x+ox, gy=G.player.y+oy;
         if(gx>0&&gy>0&&gx<G.COLS-1&&gy<G.ROWS-1 &&
            G.map[gy][gx]===0 &&
            !(gx===G.player.x&&gy===G.player.y) &&
            !(gx===G.goalChar.x&&gy===G.goalChar.y) &&
            !isGoldBlock(gx,gy)){
-          G.goldBlocks.push({x:gx,y:gy,timer:6000}); // 6000ms = 6 segundos reales
-          placed++;
+          G.goldBlocks.push({x:gx,y:gy,timer:6000});
+          sfx('gold');
+          break;
         }
       }
     }
@@ -1462,7 +1679,11 @@ function updateVirusEnemy(e,dt){
     return;
   }
   e.teleTimer+=dt;
-  const interval = Math.max(1800, 3200 - G.level * 40 - (G.diff === 'hard' ? 80 : G.diff === 'normal' ? 40 : 0));
+  // easy: muy lento (base 5000), normal: más rápido (base 3500), hard: rápido (base 2000)
+  // Cada nivel aumenta velocidad un poco (reduce intervalo)
+  const virusBase=G.diff==='hard'?2000:G.diff==='normal'?3500:5500;
+  const virusDecay=G.diff==='hard'?30:G.diff==='normal'?50:40;
+  const interval=Math.max(G.diff==='hard'?1000:G.diff==='normal'?1500:2500, virusBase-G.level*virusDecay);
   if(e.teleTimer >= interval) {
     e.teleTimer = 0;
     // Pick a cell close to player
@@ -1579,9 +1800,16 @@ function gameLoop(ts=0){
     if(h.collected)return;
     const hx=h.x*T+T/2,hy=h.y*T+T/2;
     const pulse=Math.sin(t*.005+h.pulse)*2.5;
+    ctx.globalAlpha=1; // siempre opaco
     ctx.font=`${T*.7+pulse}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.shadowColor=h.type==='love'?'#e8a0b0':'#ff4040';ctx.shadowBlur=14;
-    ctx.fillText(h.type==='love'?'💗':'❤️',hx,hy);ctx.shadowBlur=0;
+    if(h.type==='love'){
+      ctx.shadowColor='#ff4488';ctx.shadowBlur=18;
+      ctx.fillText('💗',hx,hy);
+    } else {
+      ctx.shadowColor='#ff2020';ctx.shadowBlur=16;
+      ctx.fillText('❤️',hx,hy);
+    }
+    ctx.shadowBlur=0;ctx.globalAlpha=1;
   });
   G.iceOnMap.forEach(h=>{
     if(h.collected)return;
@@ -1591,19 +1819,36 @@ function gameLoop(ts=0){
     ctx.fillText('🧊',h.x*T+T/2,h.y*T+T/2);ctx.shadowBlur=0;
   });
 
-  // Goal
+  // Goal character — translucido mientras está bloqueado, visible al desbloquear
   const gx=G.goalChar.x*T+T/2,gy=G.goalChar.y*T+T/2;
   const locked=G.heartsGot<loveTotal();
-  if(locked)ctx.globalAlpha=.3+Math.sin(t*.003)*.12;
+  ctx.globalAlpha=locked?(0.38+Math.sin(t*.002)*.08):1;
   ctx.font=`${T*.85}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.shadowColor=G.isHugo?'#ffb0d0':'#a0d0ff';ctx.shadowBlur=18;
-  ctx.fillText(G.goalChar.char,gx,gy);ctx.shadowBlur=0;ctx.globalAlpha=1;
+  if(!locked){
+    // Glow al estar desbloqueado
+    ctx.shadowColor=G.isHugo?'#ffb0d0':'#a0d0ff';ctx.shadowBlur=26;
+  } else {
+    ctx.shadowColor='rgba(255,255,255,.3)';ctx.shadowBlur=8;
+  }
+  ctx.fillText(G.goalChar.char,gx,gy);
+  ctx.shadowBlur=0;ctx.globalAlpha=1;
   // Name label
   ctx.font=`bold ${T*.3}px 'Dancing Script',cursive`;
-  ctx.fillStyle=G.isHugo?'#e8a0b0':'#a0d0ff';
-  ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=8;
+  ctx.fillStyle=locked?'rgba(200,180,210,.4)':(G.isHugo?'#e8a0b0':'#a0d0ff');
+  ctx.shadowColor=locked?'transparent':ctx.fillStyle;ctx.shadowBlur=locked?0:8;
   ctx.fillText(G.goalChar.name,gx,gy-T*.85);ctx.shadowBlur=0;
-  if(locked){ctx.font=`${T*.3}px serif`;ctx.fillText('🔒',gx+T*.4,gy-T*.2);}
+  if(locked){
+    ctx.globalAlpha=0.5+Math.sin(t*.003)*.1;
+    ctx.font=`${T*.35}px serif`;ctx.fillText('🔒',gx+T*.4,gy-T*.2);
+    ctx.globalAlpha=1;
+  } else {
+    // Pulso de celebración cuando está desbloqueado
+    const bloom=Math.sin(t*.005)*4;
+    ctx.globalAlpha=0.3+Math.sin(t*.004)*.15;
+    ctx.beginPath();ctx.arc(gx,gy,T*.6+bloom,0,Math.PI*2);
+    ctx.strokeStyle=G.isHugo?'#ffb0d0':'#a0d0ff';ctx.lineWidth=2;ctx.stroke();
+    ctx.globalAlpha=1;
+  }
 
   // Player (flicker when invincible)
   if(G.player.invTimer<=0||Math.floor(t/80)%2===0){
